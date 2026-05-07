@@ -954,6 +954,78 @@ $('lang').addEventListener('click', () => {
 });
 
 applyLang();
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GIF capture mode — auto-runs a tight dramatic loop for thumbnail recording
+// Hit ?gif to enable. Captures: calm → flash → plug → peak → cooling → loop.
+// ─────────────────────────────────────────────────────────────────────────────
+if (location.search.includes('gif')) {
+    document.getElementById('lang').style.display = 'none';
+    document.getElementById('caption').style.display = 'none';
+    // Force cell to fill viewport for clean thumbnail framing
+    const cellEl = document.getElementById('cell');
+    cellEl.style.width = '94vw';
+    cellEl.style.height = '88vh';
+    cellEl.style.aspectRatio = 'auto';
+    async function gifLoop() {
+        while (true) {
+            // Reset to start
+            endScreen.classList.remove('show','died');
+            titleScreen.classList.add('hide');
+            titleScreen.style.display = 'none';
+            state = 'calm';
+            phaseStartedAt = performance.now();
+            heat = 6;
+            heatFill.style.width = '6%';
+            plugged = crouched = clothWet = clothOn = clothTaken = false;
+            plug.classList.remove('on');
+            man.classList.remove('crouch','cloth-on');
+            cloth.classList.remove('gone','wet');
+            cloth.style.opacity = ''; cloth.style.transform = '';
+            dish.classList.remove('empty');
+            $('corner').classList.remove('used','hint');
+            setOutside('ash');
+            setSlit('cool');
+            setAura('');
+            phase.textContent = '07:52';
+            if (!tickInt) tickInt = setInterval(tick, 60);
+            if (!ashTimer) ashTimer = setInterval(spawnAsh, 320);
+
+            await new Promise(r => setTimeout(r, 800));
+            // Eruption: flash
+            state = 'eruption';
+            phaseStartedAt = performance.now();
+            phase.textContent = '07:52 — IL VIENT';
+            setOutside('flash'); setSlit('flash'); setAura('on');
+            $('corner').classList.add('hint');
+            await new Promise(r => setTimeout(r, 700));
+            // Plug
+            plugSlit();
+            await new Promise(r => setTimeout(r, 350));
+            // Peak
+            setOutside('glow'); setSlit('glow'); setAura('peak');
+            crouchInCorner();
+            await new Promise(r => setTimeout(r, 700));
+            // Cloth pickup → wet → face
+            onCloth({stopPropagation:()=>{}});
+            await new Promise(r => setTimeout(r, 250));
+            onDish({stopPropagation:()=>{}});
+            await new Promise(r => setTimeout(r, 250));
+            onMan({stopPropagation:()=>{}});
+            await new Promise(r => setTimeout(r, 700));
+            // Cool
+            setOutside('cooling'); setSlit('cool'); setAura('cool');
+            phase.textContent = '08:00 — SILENCE';
+            await new Promise(r => setTimeout(r, 600));
+            // Day 4 daylight
+            setOutside('day4'); setSlit('day');
+            phase.textContent = '12 MAI — RESCUE';
+            await new Promise(r => setTimeout(r, 900));
+        }
+    }
+    document.addEventListener('DOMContentLoaded', gifLoop);
+    if (document.readyState !== 'loading') gifLoop();
+}
 </script>
 </body>
 </html>
