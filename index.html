@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>独房 1902 — St-Pierre / Mont Pelée</title>
+<meta name="description" content="1902年5月8日、サン・ピエール。プレー山の火砕流が90秒で街を消した日、地下独房に居て生き残った男の3分間。">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none; }
+html, body {
+    width:100%; height:100%; overflow:hidden;
+    background:#0a0604;
+    font-family:'Helvetica Neue', Arial, 'Hiragino Sans', sans-serif;
+    color:#d8c8a8;
+    touch-action:manipulation;
+}
+
+#stage { position:fixed; inset:0; overflow:hidden; }
+
+/* Outside-the-slit sky — visible through the door slit. Drives the drama. */
+#outside {
+    position:absolute; inset:0;
+    background:#18120c;
+    transition:background 0.6s linear;
+    z-index:0;
+}
+#outside.dawn   { background:linear-gradient(#1a1610, #2a201a 60%, #3a2a1c); }
+#outside.ash    { background:linear-gradient(#241a14, #3a2a1e 60%, #4a3526); }
+#outside.flash  { background:radial-gradient(ellipse at 70% 30%, #fff7d6 0%, #ffb24d 25%, #d24a1a 55%, #6a1a08 100%); }
+#outside.glow   { background:radial-gradient(ellipse at 70% 35%, #ffb060 0%, #c44a18 40%, #4a1a08 100%); }
+#outside.cooling{ background:linear-gradient(#1a0e08, #2a1a10 70%); }
+#outside.silent { background:#0a0604; }
+#outside.day4   { background:linear-gradient(#3a3a44, #5a5560 70%, #7a7280); }
+
+/* The cell — drawn as a stone room, side view. We are inside looking sideways. */
+#cell {
+    position:absolute;
+    left:50%; top:50%; transform:translate(-50%, -50%);
+    width:min(94vw, 460px);
+    aspect-ratio: 9 / 14;
+    z-index:2;
+    border-radius:6px;
+    background:
+        repeating-linear-gradient(0deg, rgba(0,0,0,0.18) 0 2px, transparent 2px 28px),
+        repeating-linear-gradient(90deg, rgba(0,0,0,0.10) 0 2px, transparent 2px 36px),
+        linear-gradient(180deg, #2a221a 0%, #1a1410 100%);
+    box-shadow:
+        inset 0 0 60px rgba(0,0,0,0.7),
+        inset 0 0 20px rgba(0,0,0,0.9),
+        0 4px 32px rgba(0,0,0,0.8);
+    overflow:hidden;
+}
+
+/* Subtle stones */
+.stone {
+    position:absolute;
+    background:rgba(80,60,42,0.18);
+    border:1px solid rgba(0,0,0,0.18);
+    border-radius:3px;
+}
+
+/* The door, inset on right side */
+#door {
+    position:absolute;
+    right:4%; top:6%;
+    width:28%; height:78%;
+    background:linear-gradient(120deg, #3a2818 0%, #281a10 100%);
+    border:2px solid #1a0e06;
+    border-radius:3px;
+    box-shadow: inset 0 0 18px rgba(0,0,0,0.7);
+}
+#door::after { /* iron strap */
+    content:"";
+    position:absolute; left:0; right:0; top:50%;
+    height:6px; background:#1a0c04; transform:translateY(-50%);
+}
+
+/* The slit — small barred opening near the top of the door */
+#slit {
+    position:absolute;
+    right:5%; top:8%;
+    width:26%; height:10%;
+    background:#0a0604;
+    border:2px solid #0a0604;
+    border-radius:2px;
+    overflow:hidden;
+    z-index:3;
+    cursor:pointer;
+}
+#slit-light {
+    position:absolute; inset:0;
+    background:#1a1208;
+    transition:background 0.5s linear, box-shadow 0.5s linear;
+}
+#slit-light.flash { background: radial-gradient(circle, #fff7d6 0%, #ffb24d 50%, #d24a1a 100%); box-shadow: 0 0 40px 18px rgba(255,140,40,0.7), 0 0 80px 20px rgba(255,80,20,0.4); }
+#slit-light.glow  { background: radial-gradient(circle, #ffb060 0%, #c44a18 60%, #4a1a08 100%); box-shadow: 0 0 24px 8px rgba(220,90,30,0.5); }
+#slit-light.cool  { background: #2a1a10; }
+#slit-light.day   { background: linear-gradient(#9aa0b0, #c0c0c8); }
+
+/* Bars across the slit */
+.bar {
+    position:absolute; top:0; bottom:0; width:2px; background:#1a0c04;
+    z-index:2;
+}
+
+/* Plug overlay — when player covers the slit */
+#plug {
+    position:absolute; inset:0;
+    background:linear-gradient(120deg, #6a4a32, #4a2a1a);
+    z-index:4;
+    transform:translateY(-110%);
+    transition: transform 0.4s ease-out;
+}
+#plug.on { transform:translateY(0); }
+
+/* Heat aura — hot air pouring in around the door */
+#heat-aura {
+    position:absolute;
+    right:0; top:0; width:50%; height:100%;
+    background: radial-gradient(circle at 90% 18%, rgba(255,140,40,0.0) 0%, rgba(255,140,40,0) 100%);
+    transition: background 0.6s ease-out, opacity 0.6s ease-out;
+    pointer-events:none;
+    z-index:3;
+    opacity:0;
+}
+#heat-aura.on   { background: radial-gradient(circle at 90% 18%, rgba(255,170,80,0.55) 0%, rgba(255,140,40,0.25) 35%, rgba(255,140,40,0) 70%); opacity:1; }
+#heat-aura.peak { background: radial-gradient(circle at 90% 18%, rgba(255,220,150,0.9) 0%, rgba(255,150,60,0.55) 35%, rgba(255,80,20,0.2) 70%); opacity:1; }
+#heat-aura.cool { background: radial-gradient(circle at 90% 18%, rgba(255,140,40,0.15) 0%, rgba(255,140,40,0) 60%); opacity:0.5; }
+
+/* Floor */
+#floor {
+    position:absolute; left:0; right:0; bottom:0;
+    height:18%;
+    background:linear-gradient(180deg, #1a1410 0%, #0a0604 100%);
+    border-top:1px solid #0a0604;
+    z-index:2;
+}
+
+/* Water dish (urinal/cup in the corner) */
+#dish {
+    position:absolute;
+    left:10%; bottom:6%;
+    width:14%; height:6%;
+    background:radial-gradient(ellipse at center, #4a3a2a 0%, #1a1006 80%);
+    border:1px solid #0a0604;
+    border-radius:50%;
+    z-index:5;
+    cursor:pointer;
+}
+#dish::after {
+    content:"";
+    position:absolute; inset:18% 14%;
+    background:#3a3530;
+    border-radius:50%;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.5);
+}
+#dish.empty::after { background:#1a1410; }
+
+/* Corner tap target — left wall corner where Cyparis must huddle */
+#corner {
+    position:absolute;
+    left:0; bottom:0;
+    width:30%; height:32%;
+    z-index:5;
+    cursor:pointer;
+    background:linear-gradient(135deg, rgba(255,176,96,0) 0%, rgba(255,176,96,0) 100%);
+    transition: background 0.4s;
+}
+#corner.hint {
+    background:linear-gradient(135deg, rgba(255,176,96,0.18) 0%, rgba(255,176,96,0) 70%);
+    animation: cornerPulse 1.4s infinite;
+}
+#corner.used { display:none; }
+@keyframes cornerPulse {
+    0%,100% { background:linear-gradient(135deg, rgba(255,176,96,0.10) 0%, rgba(255,176,96,0) 70%); }
+    50%     { background:linear-gradient(135deg, rgba(255,176,96,0.30) 0%, rgba(255,176,96,0) 70%); }
+}
+
+/* Cloth pile */
+#cloth {
+    position:absolute;
+    left:30%; bottom:5%;
+    width:14%; height:8%;
+    background:linear-gradient(120deg, #5a4a3a, #3a2a1c);
+    border-radius:50% 30% 40% 50%;
+    box-shadow: inset 0 -3px 6px rgba(0,0,0,0.4);
+    z-index:5;
+    cursor:pointer;
+}
+#cloth.wet { background:linear-gradient(120deg, #3a4a5a, #1a2a3c); box-shadow: inset 0 -3px 6px rgba(0,0,0,0.5), 0 0 6px rgba(80,140,180,0.4); }
+#cloth.gone { display:none; }
+
+/* The man — Cyparis. Drawn as a small huddled figure */
+#man {
+    position:absolute;
+    left:40%; bottom:18%;
+    width:24%; height:32%;
+    transition: left 0.6s cubic-bezier(.5,.0,.4,1), bottom 0.6s ease-out, transform 0.4s;
+    z-index:6;
+    cursor:pointer;
+}
+#man svg { width:100%; height:100%; display:block; }
+
+#man.crouch { bottom:6%; left:8%; transform:scale(0.8); }
+#man.cloth-on .face-cloth { opacity:1; }
+
+/* HUD */
+#hud {
+    position:absolute;
+    top:0; left:0; right:0;
+    padding:10px 14px;
+    z-index:20;
+    display:flex; justify-content:space-between; align-items:flex-start;
+    font-size:11px;
+    letter-spacing:1.5px;
+    pointer-events:none;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+}
+#hud .left { text-align:left; }
+#hud .right { text-align:right; }
+#date { font-size:11px; color:#9a8a72; }
+#phase { font-size:13px; color:#d8c8a8; margin-top:2px; }
+#heat {
+    margin-top:6px;
+    width:120px; height:6px;
+    background:rgba(0,0,0,0.5);
+    border:1px solid #3a2a1a;
+    border-radius:3px;
+    overflow:hidden;
+}
+#heat-fill {
+    height:100%; width:0%;
+    background:linear-gradient(90deg, #d8c8a8 0%, #ffb060 50%, #d24a1a 100%);
+    transition: width 0.4s linear;
+}
+
+/* Caption / narration banner */
+#caption {
+    position:absolute;
+    left:50%;
+    bottom:8%;
+    transform:translateX(-50%);
+    width:min(86vw, 440px);
+    padding:10px 14px;
+    background:rgba(10,6,4,0.88);
+    border:1px solid rgba(216,200,168,0.18);
+    border-radius:6px;
+    text-align:center;
+    font-size:13px;
+    line-height:1.55;
+    color:#e0d0a8;
+    z-index:25;
+    box-shadow:0 4px 20px rgba(0,0,0,0.6);
+    pointer-events:none;
+    opacity:0;
+    transition:opacity 0.5s;
+    letter-spacing:0.5px;
+}
+#caption.show { opacity:1; }
+#caption b { color:#ffb060; font-weight:600; }
+#caption em { color:#d8c8a8; font-style:normal; border-bottom:1px dotted #6a5a3a; }
+
+/* Action prompt — appears when player should act */
+#prompt {
+    position:absolute;
+    top:24%; left:50%;
+    transform:translateX(-50%);
+    background:rgba(212,74,26,0.92);
+    color:#fff;
+    padding:8px 16px;
+    border-radius:20px;
+    font-size:12px;
+    letter-spacing:1px;
+    font-weight:600;
+    z-index:30;
+    opacity:0;
+    transition:opacity 0.3s;
+    box-shadow:0 4px 16px rgba(212,74,26,0.5);
+    pointer-events:none;
+}
+#prompt.show { opacity:1; animation: pulse 1.2s infinite; }
+@keyframes pulse { 0%,100%{ transform:translateX(-50%) scale(1); } 50%{ transform:translateX(-50%) scale(1.05); } }
+
+/* Ash motes drifting from slit */
+.ash {
+    position:absolute;
+    width:3px; height:3px;
+    background:#9a8a72;
+    border-radius:50%;
+    opacity:0.6;
+    pointer-events:none;
+    z-index:4;
+}
+
+/* Tap-hint pulsing rings on interactives */
+.tap-ring {
+    position:absolute;
+    inset:-6px;
+    border:2px solid #ffb060;
+    border-radius:50%;
+    pointer-events:none;
+    opacity:0;
+    animation: ring 1.6s infinite;
+}
+@keyframes ring {
+    0% { transform:scale(0.6); opacity:0.9; }
+    100% { transform:scale(1.6); opacity:0; }
+}
+.show-ring .tap-ring { display:block; }
+.tap-ring { display:none; }
+
+/* Title overlay */
+#title {
+    position:absolute; inset:0;
+    background:linear-gradient(180deg, #0a0604 0%, #1a0c04 100%);
+    z-index:50;
+    display:flex; flex-direction:column;
+    justify-content:center; align-items:center;
+    text-align:center;
+    padding:24px;
+    transition:opacity 1s;
+}
+#title h1 {
+    font-size:28px;
+    letter-spacing:8px;
+    color:#e0d0a8;
+    margin-bottom:8px;
+    font-weight:300;
+}
+#title .sub {
+    font-size:12px;
+    letter-spacing:3px;
+    color:#9a8a72;
+    margin-bottom:30px;
+}
+#title .lede {
+    max-width:340px;
+    font-size:13px;
+    line-height:1.7;
+    color:#c0b098;
+    margin-bottom:30px;
+}
+#title .lede b { color:#ffb060; }
+#title button {
+    background:#3a2a1a;
+    color:#e0d0a8;
+    border:1px solid #ffb060;
+    border-radius:4px;
+    padding:12px 28px;
+    font-size:14px;
+    letter-spacing:3px;
+    cursor:pointer;
+    font-family:inherit;
+}
+#title button:active { background:#5a3a22; }
+#title.hide { opacity:0; pointer-events:none; }
+
+/* Lang switcher */
+#lang {
+    position:absolute; bottom:14px; right:14px;
+    z-index:60;
+    font-size:10px;
+    color:#9a8a72;
+    cursor:pointer;
+    letter-spacing:1.5px;
+    background:rgba(10,6,4,0.7);
+    padding:5px 9px;
+    border:1px solid rgba(216,200,168,0.2);
+    border-radius:3px;
+    pointer-events:auto;
+}
+
+/* End screen */
+#end {
+    position:absolute; inset:0;
+    background:rgba(10,6,4,0.96);
+    z-index:55;
+    display:none;
+    flex-direction:column;
+    justify-content:center; align-items:center;
+    text-align:center;
+    padding:24px;
+}
+#end.show { display:flex; }
+#end h2 {
+    font-size:22px;
+    letter-spacing:4px;
+    color:#e0d0a8;
+    margin-bottom:10px;
+    font-weight:300;
+}
+#end .epitaph {
+    max-width:360px;
+    font-size:13px;
+    line-height:1.75;
+    color:#c0b098;
+    margin-bottom:18px;
+}
+#end .epitaph b { color:#ffb060; }
+#end .epitaph em { color:#d8c8a8; font-style:normal; }
+#end .num {
+    font-size:36px; color:#d24a1a; letter-spacing:4px;
+    margin:8px 0;
+    font-weight:200;
+}
+#end button {
+    background:transparent;
+    color:#9a8a72;
+    border:1px solid #6a5a3a;
+    border-radius:3px;
+    padding:8px 20px;
+    font-size:11px;
+    letter-spacing:2px;
+    cursor:pointer;
+    font-family:inherit;
+    margin-top:18px;
+}
+
+/* Death screen variant */
+#end.died h2 { color:#d24a1a; }
+
+@media (max-height: 640px) {
+    #cell { aspect-ratio: 9/12; }
+    #title h1 { font-size:24px; }
+    #title .lede { font-size:12px; }
+}
+</style>
+</head>
+<body>
+
+<div id="stage">
+    <div id="outside"></div>
+
+    <div id="cell">
+        <!-- random stones -->
+        <div class="stone" style="left:8%; top:12%; width:18%; height:8%;"></div>
+        <div class="stone" style="left:32%; top:8%; width:14%; height:10%;"></div>
+        <div class="stone" style="left:54%; top:14%; width:12%; height:8%;"></div>
+        <div class="stone" style="left:6%; top:32%; width:16%; height:9%;"></div>
+        <div class="stone" style="left:38%; top:38%; width:18%; height:8%;"></div>
+        <div class="stone" style="left:10%; top:60%; width:20%; height:7%;"></div>
+        <div class="stone" style="left:34%; top:64%; width:14%; height:9%;"></div>
+
+        <div id="heat-aura"></div>
+
+        <div id="door"></div>
+        <div id="slit">
+            <div id="slit-light"></div>
+            <div class="bar" style="left:30%;"></div>
+            <div class="bar" style="left:55%;"></div>
+            <div class="bar" style="left:80%;"></div>
+            <div id="plug"></div>
+        </div>
+
+        <div id="floor"></div>
+
+        <div id="corner"></div>
+
+        <div id="dish" data-tap="dish">
+            <div class="tap-ring"></div>
+        </div>
+        <div id="cloth" data-tap="cloth">
+            <div class="tap-ring"></div>
+        </div>
+
+        <div id="man">
+            <svg viewBox="0 0 100 130" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
+                <!-- shadow -->
+                <ellipse cx="50" cy="125" rx="28" ry="3" fill="#000" opacity="0.5"/>
+                <!-- body, sitting/huddled -->
+                <path d="M 28 124 Q 30 80 40 70 Q 50 60 60 70 Q 70 80 72 124 Z" fill="#3a2a1a" stroke="#1a0c04" stroke-width="1.2"/>
+                <!-- arms wrapping knees -->
+                <path d="M 30 100 Q 22 88 28 78 L 40 78 Q 48 88 42 100 Z" fill="#4a3522" stroke="#1a0c04" stroke-width="1"/>
+                <path d="M 70 100 Q 78 88 72 78 L 60 78 Q 52 88 58 100 Z" fill="#4a3522" stroke="#1a0c04" stroke-width="1"/>
+                <!-- head -->
+                <circle cx="50" cy="62" r="11" fill="#6a4830" stroke="#1a0c04" stroke-width="1"/>
+                <!-- face cloth (initially hidden) -->
+                <path class="face-cloth" d="M 36 60 Q 50 70 64 60 L 64 72 Q 50 80 36 72 Z" fill="#3a4a5a" stroke="#1a0c04" stroke-width="1" opacity="0"/>
+            </svg>
+        </div>
+
+        <div id="prompt"></div>
+    </div>
+
+    <div id="hud">
+        <div class="left">
+            <div id="date">SAINT-PIERRE · MARTINIQUE</div>
+            <div id="phase">8 mai 1902 · 07:52</div>
+        </div>
+        <div class="right">
+            <div style="text-align:right; font-size:10px; color:#9a8a72;">CELL HEAT</div>
+            <div id="heat"><div id="heat-fill"></div></div>
+        </div>
+    </div>
+
+    <div id="caption"></div>
+
+    <div id="title">
+        <h1 data-i18n="title">独房 1902</h1>
+        <div class="sub" data-i18n="subtitle">SAINT-PIERRE · 8 MAI 1902</div>
+        <div class="lede" data-i18n="lede">
+            1902年5月8日 7時52分、サン・ピエール。<br>
+            プレー山が割れ、<b>670 km/h</b>の火砕流が90秒で街を消した。<br>
+            約<b>28,000人</b>が死んだ。<br>
+            街の中心で生き残ったのは、けんかで<b>独房</b>に入れられていた27歳、<b>シパリス</b>ただ一人。<br>
+            <span style="color:#9a8a72; font-size:12px;">あなたは彼。スリットから熱が来る。塞げ。低く。布を濡らせ。</span>
+        </div>
+        <button id="start-btn" data-i18n="start">は じ め る</button>
+    </div>
+
+    <div id="end">
+        <h2 id="end-title"></h2>
+        <div class="num" id="end-num"></div>
+        <div class="epitaph" id="end-text"></div>
+        <button id="restart-btn" data-i18n="again">もう一度</button>
+    </div>
+
+    <div id="lang">JA / EN</div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// i18n
+// ─────────────────────────────────────────────────────────────────────────────
+const I18N = {
+    ja: {
+        title: "独房 1902",
+        subtitle: "サン・ピエール · 1902年5月8日",
+        lede: '1902年5月8日 7時52分、サン・ピエール。<br>プレー山が割れ、<b>670 km/h</b>の火砕流が90秒で街を消した。<br>約<b>28,000人</b>が死んだ。<br>街の中心で生き残ったのは、けんかで<b>独房</b>に入れられていた27歳、<b>シパリス</b>ただ一人。<br><span style="color:#9a8a72; font-size:12px;">あなたは彼。スリットから熱が来る。塞げ。低く。布を濡らせ。</span>',
+        start: "は じ め る",
+        again: "もう一度",
+        // captions
+        c_calm:    "山は数週間、揺れていた。今朝、灰が降っている。",
+        c_warning: "<b>来た。</b>",
+        c_plug:    "光が入る。<em>スリットを塞げ。</em>",
+        c_dish:    "水盤に少しだけ水。<em>布を濡らせ。</em>",
+        c_corner:  "壁の隅に低く。<em>身を伏せろ。</em>",
+        c_breath:  "<em>濡れ布を顔に。</em>息ができる。",
+        c_peak:    "外で、<b>1000℃</b>の風が街を呑んだ。",
+        c_cool:    "音が、止んだ。",
+        c_silent:  "外には、もう何もない。",
+        c_day1:    "日が暮れ、また昇る。",
+        c_day4:    "4日後 — 声。「<em>誰かいるのか？</em>」",
+        // prompts
+        p_plug:    "▲ スリット",
+        p_dish:    "● 水盤",
+        p_cloth:   "■ 布を取る",
+        p_corner:  "◀ 隅へ",
+        p_face:    "▲ 顔へ",
+        // end
+        win_title:    "シ パ リ ス、 生 き る",
+        win_num:      "唯 一 の 生 還",
+        win_text:     '街の中心で生き残ったのは <b>ルジェ・シパリス</b> ただ一人。彼は重度の火傷を負ったが、回復した。後にバーナム＆ベイリー・サーカスに加わり、<b>「終末を生き抜いた男」</b>として世界を巡った。<br><br>サン・ピエールは二度と元には戻らない。<em>いま、この街には住んでいる人がいる。が、当時の中心地は廃墟のままだ。</em>',
+        die_title:    "街 が 消 え た",
+        die_num:      "≈ 28,000",
+        die_text:     '<b>火砕流</b>は90秒で街を呑んだ。プレー山が出した熱風は<b>1000℃</b>、速度は時速<b>670km</b>。<br><br>けれどシパリスは生き残った。スリットを塞ぎ、低くなり、濡れ布を顔に。<em>歴史の通りに、もう一度。</em>'
+    },
+    en: {
+        title: "The Cell, 1902",
+        subtitle: "SAINT-PIERRE · 8 MAY 1902",
+        lede: 'Saint-Pierre, Martinique, 8 May 1902, 07:52. <b>Mont Pelée</b> split open. A pyroclastic flow at <b>670 km/h</b> erased the city in 90 seconds. About <b>28,000</b> died. The only survivor in the city center was <b>Ludger Cyparis</b>, 27, locked in a half-buried <b>solitary cell</b> for a brawl.<br><span style="color:#9a8a72; font-size:12px;">You are him. Heat is coming through the slit. Plug it. Get low. Wet a cloth.</span>',
+        start: "B E G I N",
+        again: "AGAIN",
+        c_calm:    "The mountain has rumbled for weeks. Ash is falling.",
+        c_warning: "<b>It comes.</b>",
+        c_plug:    "Light pours in. <em>Plug the slit.</em>",
+        c_dish:    "A little water in the dish. <em>Wet the cloth.</em>",
+        c_corner:  "<em>Get low into the corner.</em>",
+        c_breath:  "<em>Cloth to your face.</em> You can breathe.",
+        c_peak:    "Outside, a <b>1000°C</b> wind devours the city.",
+        c_cool:    "The sound stops.",
+        c_silent:  "There is nothing outside anymore.",
+        c_day1:    "Night falls. Day breaks.",
+        c_day4:    "Four days later — voices. \"<em>Quelqu'un est là?</em>\"",
+        p_plug:    "▲ SLIT",
+        p_dish:    "● DISH",
+        p_cloth:   "■ TAKE CLOTH",
+        p_corner:  "◀ CORNER",
+        p_face:    "▲ TO FACE",
+        win_title:    "C Y P A R I S    L I V E S",
+        win_num:      "S O L E   S U R V I V O R",
+        win_text:     'The only survivor in the city center was <b>Ludger Cyparis</b>. Severely burned, he recovered. He later joined <b>Barnum & Bailey\'s circus</b> and toured the world as <b>"the man who lived through doomsday."</b><br><br>Saint-Pierre never recovered. <em>Today people live there again, but the historic center remains a ruin.</em>',
+        die_title:    "T H E   C I T Y   I S   G O N E",
+        die_num:      "≈ 28,000",
+        die_text:     'The <b>pyroclastic flow</b> ate the city in 90 seconds. <b>1000°C</b>, <b>670 km/h</b>.<br><br>But Cyparis lived. He plugged the slit, got low, and wet a cloth for his face. <em>As history did, once more.</em>'
+    }
+};
+let LANG = (navigator.language || '').toLowerCase().startsWith('ja') ? 'ja' : 'en';
+function t(k){ return I18N[LANG][k] || k; }
+function applyLang(){
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const k = el.getAttribute('data-i18n');
+        if (I18N[LANG][k]) el.innerHTML = I18N[LANG][k];
+    });
+    document.documentElement.lang = LANG;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Game state & DOM
+// ─────────────────────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const outside = $('outside'), slitLight = $('slit-light'), heatAura = $('heat-aura');
+const heatFill = $('heat-fill'), phase = $('phase'), caption = $('caption'), prompt = $('prompt');
+const plug = $('plug'), dish = $('dish'), cloth = $('cloth'), man = $('man');
+const titleScreen = $('title'), endScreen = $('end');
+const cell = $('cell');
+
+let state = 'idle';   // idle, calm, eruption, cooling, silent, days, end
+let heat = 0;
+let plugged = false, crouched = false, clothWet = false, clothOn = false, clothTaken = false;
+let lastTick = 0;
+let phaseStartedAt = 0;
+let ashTimer = null;
+let warningGiven = false;
+
+function showCaption(key, ms=3500) {
+    caption.innerHTML = t(key);
+    caption.classList.add('show');
+    if (ms > 0) {
+        clearTimeout(showCaption._t);
+        showCaption._t = setTimeout(() => caption.classList.remove('show'), ms);
+    }
+}
+function showPrompt(key) {
+    if (!key) { prompt.classList.remove('show'); return; }
+    prompt.textContent = t(key);
+    prompt.classList.add('show');
+}
+function hidePrompt(){ prompt.classList.remove('show'); }
+
+function setOutside(cls) {
+    outside.className = '';
+    outside.classList.add(cls);
+}
+function setSlit(cls) {
+    slitLight.className = '';
+    slitLight.classList.add(cls);
+}
+function setAura(cls) {
+    heatAura.className = '';
+    if (cls) heatAura.classList.add(cls);
+}
+
+function spawnAsh() {
+    if (state === 'silent' || state === 'days' || state === 'end') return;
+    const a = document.createElement('div');
+    a.className = 'ash';
+    const slitRect = $('slit').getBoundingClientRect();
+    const cellRect = cell.getBoundingClientRect();
+    const x = (slitRect.left - cellRect.left) + Math.random() * slitRect.width;
+    a.style.left = (x / cellRect.width * 100) + '%';
+    a.style.top = ((slitRect.bottom - cellRect.top) / cellRect.height * 100) + '%';
+    cell.appendChild(a);
+    const dur = 2400 + Math.random() * 1800;
+    a.animate([
+        { transform:'translate(0,0)', opacity:0.6 },
+        { transform:`translate(${(Math.random()-0.5)*50}px, ${cellRect.height*0.6}px)`, opacity:0 }
+    ], { duration: dur, easing:'linear' });
+    setTimeout(() => a.remove(), dur);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Interactions
+// ─────────────────────────────────────────────────────────────────────────────
+$('slit').addEventListener('click', onSlit);
+dish.addEventListener('click', onDish);
+cloth.addEventListener('click', onCloth);
+man.addEventListener('click', onMan);
+$('corner').addEventListener('click', onCornerTap);
+
+function onSlit(e) {
+    e.stopPropagation();
+    if (state !== 'eruption') return;
+    if (!plugged && clothTaken && !clothOn) {
+        // Use cloth to plug the slit (instead of as face cloth)
+        plugSlit();
+    } else if (!plugged) {
+        // Try to plug without cloth: still works (rags from clothes)
+        plugSlit();
+    }
+}
+function plugSlit() {
+    plugged = true;
+    plug.classList.add('on');
+    flashCheck('plug');
+}
+
+function onDish(e) {
+    e.stopPropagation();
+    if (state !== 'eruption' && state !== 'calm') return;
+    if (!clothTaken) {
+        // pick up cloth automatically? No — require taking cloth first.
+        showPrompt('p_cloth');
+        return;
+    }
+    if (clothTaken && !clothWet) {
+        clothWet = true;
+        cloth.classList.add('wet');
+        dish.classList.add('empty');
+        flashCheck('dish');
+    }
+}
+
+function onCloth(e) {
+    e.stopPropagation();
+    if (cloth.classList.contains('gone')) return;
+    if (!clothTaken) {
+        clothTaken = true;
+        // visually shrink/move cloth to indicate "in hand"
+        cloth.style.opacity = '0.5';
+        cloth.style.transform = 'scale(0.7)';
+        flashCheck('takeCloth');
+    }
+}
+
+function onMan(e) {
+    e.stopPropagation();
+    if (state !== 'eruption') return;
+    if (clothTaken && clothWet && !clothOn) {
+        clothOn = true;
+        man.classList.add('cloth-on');
+        flashCheck('face');
+    }
+}
+
+function onCornerTap(e) {
+    e.stopPropagation();
+    if (state !== 'eruption') return;
+    if (!crouched) crouchInCorner();
+}
+function crouchInCorner() {
+    crouched = true;
+    man.classList.add('crouch');
+    $('corner').classList.add('used');
+    flashCheck('crouch');
+}
+
+function flashCheck(action) {
+    // brief feedback, then re-evaluate prompts
+    setTimeout(() => updatePrompts(), 200);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Prompt logic — guides player through the right sequence
+// ─────────────────────────────────────────────────────────────────────────────
+function updatePrompts() {
+    const corner = $('corner');
+    corner.classList.remove('hint');
+    if (state !== 'eruption') { hidePrompt(); return; }
+    if (!plugged) {
+        showPrompt('p_plug');
+        return;
+    }
+    if (!crouched) {
+        showPrompt('p_corner');
+        corner.classList.add('hint');
+        return;
+    }
+    if (!clothTaken) {
+        showPrompt('p_cloth');
+        return;
+    }
+    if (!clothWet) {
+        showPrompt('p_dish');
+        return;
+    }
+    if (!clothOn) {
+        showPrompt('p_face');
+        return;
+    }
+    hidePrompt();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Heat model
+// ─────────────────────────────────────────────────────────────────────────────
+// During eruption, heat rises. Plugging slit, crouching, wet cloth all reduce gain.
+// If heat hits 100, you die (game over). Otherwise, you survive once peak passes.
+function heatRate() {
+    let rate = 0;
+    if (state === 'calm')      rate = 0;
+    else if (state === 'eruption') {
+        const tElapsed = (performance.now() - phaseStartedAt) / 1000;
+        // Peak heat input around ~14-22 seconds in.
+        const peak = Math.exp(-Math.pow((tElapsed - 18) / 8, 2)); // bell curve
+        rate = 28 * peak;
+        if (plugged)   rate -= 12;
+        if (crouched)  rate -= 6;
+        if (clothOn)   rate -= 4;
+        rate = Math.max(rate, plugged ? -2 : 0); // plugged room slowly cools
+    } else if (state === 'cooling') {
+        rate = -10;
+    } else {
+        rate = -5;
+    }
+    return rate;
+}
+let tickInt = null;
+function tick() {
+    const now = performance.now();
+    if (!lastTick) lastTick = now;
+    const dt = (now - lastTick) / 1000;
+    lastTick = now;
+    if (state !== 'idle' && state !== 'end') {
+        heat += heatRate() * dt;
+        heat = Math.max(0, Math.min(heat, 110));
+        heatFill.style.width = Math.min(heat, 100) + '%';
+        if (heat >= 100 && state !== 'end') {
+            return endGame(false);
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Phases
+// ─────────────────────────────────────────────────────────────────────────────
+function startGame() {
+    titleScreen.classList.add('hide');
+    state = 'calm';
+    phaseStartedAt = performance.now();
+    setOutside('ash');
+    setSlit('cool');
+    setAura('');
+    heat = 6;
+    plugged = crouched = clothWet = clothOn = clothTaken = false;
+    plug.classList.remove('on');
+    man.classList.remove('crouch','cloth-on');
+    cloth.classList.remove('gone','wet');
+    cloth.style.opacity = ''; cloth.style.transform = '';
+    dish.classList.remove('empty');
+    $('corner').classList.remove('used','hint');
+
+    phase.textContent = LANG === 'ja' ? '8 mai 1902 · 07:52' : '8 May 1902 · 07:52';
+    showCaption('c_calm', 4000);
+    lastTick = 0;
+    if (!tickInt) tickInt = setInterval(tick, 60);
+
+    // Ash drift
+    if (ashTimer) clearInterval(ashTimer);
+    ashTimer = setInterval(spawnAsh, 320);
+
+    // Calm phase: ~10 sec, then sudden eruption.
+    setTimeout(() => phaseEruption(), 10000);
+    // Subtle warning rumble at ~7s — outside flickers.
+    setTimeout(() => {
+        if (state !== 'calm') return;
+        outside.style.transition = 'background 0.2s linear';
+        setOutside('dawn');
+        setTimeout(() => setOutside('ash'), 200);
+        outside.style.transition = '';
+    }, 6500);
+}
+
+function phaseEruption() {
+    state = 'eruption';
+    phaseStartedAt = performance.now();
+    phase.textContent = LANG === 'ja' ? '07:52 — 来た' : '07:52 — IT COMES';
+    setOutside('flash');
+    setSlit('flash');
+    setAura('on');
+    showCaption('c_warning', 1800);
+    setTimeout(() => {
+        setOutside('glow');
+        setSlit('glow');
+        setAura('peak');
+        showCaption('c_peak', 4000);
+    }, 1800);
+    setTimeout(() => updatePrompts(), 600);
+
+    // Eruption peak duration ~32 sec (compressed historical 90s)
+    setTimeout(() => phaseCooling(), 32000);
+}
+
+function phaseCooling() {
+    if (state === 'end') return;
+    // Survival check: must have plugged + crouched at minimum.
+    if (!plugged) return endGame(false);
+    state = 'cooling';
+    phaseStartedAt = performance.now();
+    setOutside('cooling');
+    setSlit('cool');
+    setAura('cool');
+    hidePrompt();
+    showCaption('c_cool', 3000);
+    phase.textContent = LANG === 'ja' ? '08:00 — 静寂' : '08:00 — SILENCE';
+
+    setTimeout(() => phaseSilent(), 4000);
+}
+
+function phaseSilent() {
+    if (state === 'end') return;
+    state = 'silent';
+    setOutside('silent');
+    setAura('');
+    showCaption('c_silent', 3500);
+    if (ashTimer) { clearInterval(ashTimer); ashTimer = null; }
+
+    setTimeout(() => phaseDays(), 4500);
+}
+
+function phaseDays() {
+    if (state === 'end') return;
+    state = 'days';
+    showCaption('c_day1', 2800);
+    phase.textContent = LANG === 'ja' ? '5月8日 → 5月12日' : '8 May → 12 May';
+    let d = 1;
+    const dayInt = setInterval(() => {
+        d++;
+        if (d >= 4) {
+            clearInterval(dayInt);
+            // Day 4: rescue
+            setOutside('day4');
+            setSlit('day');
+            showCaption('c_day4', 4000);
+            phase.textContent = LANG === 'ja' ? '5月12日 — 救助' : '12 May — RESCUE';
+            setTimeout(() => endGame(true), 4500);
+        } else {
+            // pulse outside between dim and dimmer for "night/day"
+            outside.style.transition = 'background 1.6s ease-in-out';
+            setOutside(d % 2 === 0 ? 'cooling' : 'silent');
+        }
+    }, 1800);
+}
+
+function endGame(survived) {
+    state = 'end';
+    if (ashTimer) { clearInterval(ashTimer); ashTimer = null; }
+    hidePrompt();
+    endScreen.classList.toggle('died', !survived);
+    if (survived) {
+        $('end-title').textContent = t('win_title');
+        $('end-num').textContent = t('win_num');
+        $('end-text').innerHTML = t('win_text');
+    } else {
+        $('end-title').textContent = t('die_title');
+        $('end-num').textContent = t('die_num');
+        $('end-text').innerHTML = t('die_text');
+    }
+    endScreen.classList.add('show');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Wire up
+// ─────────────────────────────────────────────────────────────────────────────
+$('start-btn').addEventListener('click', () => { applyLang(); startGame(); });
+$('restart-btn').addEventListener('click', () => {
+    endScreen.classList.remove('show','died');
+    titleScreen.classList.remove('hide');
+    state = 'idle'; heat = 0; heatFill.style.width = '0%';
+});
+$('lang').addEventListener('click', () => {
+    LANG = (LANG === 'ja') ? 'en' : 'ja';
+    applyLang();
+});
+
+applyLang();
+</script>
+</body>
+</html>
